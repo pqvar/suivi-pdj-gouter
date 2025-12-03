@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi PDJ & Goûter - Grand Hôtel</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .export-buttons {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-export {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-export:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .tabs {
+            display: flex;
+            background: #f7fafc;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 18px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: #4a5568;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab:hover {
+            background: #edf2f7;
+        }
+
+        .tab.active {
+            color: #667eea;
+            background: white;
+            border-bottom-color: #667eea;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .metric-card h3 {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .metric-card .subtext {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .section {
+            background: #f7fafc;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .section h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+
+        .form-row.header {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 15px;
+        }
+
+        input, select {
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        input[type="number"] {
+            text-align: right;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #f7fafc;
+        }
+
+        .btn-danger {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c53030;
+            transform: translateY(-2px);
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background: #edf2f7;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        tr:hover {
+            background: #f7fafc;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            line-height: 1.6;
+        }
+
+        .alert-info {
+            background: #ebf8ff;
+            color: #2c5282;
+            border-left: 4px solid #4299e1;
+        }
+
+        .alert-success {
+            background: #f0fff4;
+            color: #22543d;
+            border-left: 4px solid #48bb78;
+        }
+
+        .ratio-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #edf2f7;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .settings-section {
+            background: #fff5f5;
+            border-left: 4px solid #e53e3e;
+        }
+
+        @media print {
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Suivi PDJ & Goûter</h1>
+            <p>Gestion des marges par inventaire hebdomadaire</p>
+            <div class="export-buttons no-print">
+                <button class="btn-export" onclick="exportToExcel()">
+                    📊 Excel
+                </button>
+                <button class="btn-export" onclick="exportToPDF()">
+                    📄 PDF
+                </button>
+            </div>
+        </div>
+
+        <div class="tabs no-print">
+            <div class="tab active" data-tab="dashboard">Tableau de bord</div>
+            <div class="tab" data-tab="inventory">Inventaire</div>
+            <div class="tab" data-tab="products">Produits</div>
+            <div class="tab" data-tab="history">Historique</div>
+            <div class="tab" data-tab="settings">⚙️ Paramètres</div>
+        </div>
+
+        <div class="content">
+            <!-- DASHBOARD -->
+            <div id="dashboard" class="tab-content active">
+                <div class="dashboard">
+                    <div class="metric-card">
+                        <h3>Coût moyen PDJ</h3>
+                        <div class="value" id="avgCostPDJ">-</div>
+                        <div class="subtext">par personne</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Marge PDJ</h3>
+                        <div class="value" id="margePDJ">-</div>
+                        <div class="subtext">objectif: 70-75%</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Coût Goûter</h3>
+                        <div class="value" id="avgCostGouter">-</div>
+                        <div class="subtext">par semaine</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>PDJ servis</h3>
+                        <div class="value" id="totalPDJ">-</div>
+                        <div class="subtext">cette semaine</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>📅 Saisie rapide - Nouvelle semaine</h2>
+                    <div class="alert alert-info">
+                        💡 <strong>Étape 1 :</strong> Remplissez les 3 champs ci-dessous<br>
+                        💡 <strong>Étape 2 :</strong> Cliquez sur "Démarrer nouvelle semaine"<br>
+                        💡 <strong>Étape 3 :</strong> Vous serez automatiquement redirigé vers l'onglet "Inventaire"
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #4a5568;">Semaine du</label>
+                            <input type="date" id="weekDate" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #4a5568;">Nombre de PDJ servis</label>
+                            <input type="number" id="nbPDJ" placeholder="ex: 45" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #4a5568;">Prix vente PDJ</label>
+                            <input type="number" id="prixVentePDJ" placeholder="ex: 18" step="0.5" style="width: 100%;">
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <button class="btn" onclick="startNewWeek()">➕ Démarrer nouvelle semaine</button>
+                        <button class="btn btn-secondary" onclick="calculateCurrentWeek()">🔄 Recalculer</button>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>📈 Évolution sur 4 semaines</h2>
+                    <table id="historyTable">
+                        <thead>
+                            <tr>
+                                <th>Semaine</th>
+                                <th>PDJ servis</th>
+                                <th>Coût total</th>
+                                <th>Coût/PDJ</th>
+                                <th>Marge %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody">
+                            <tr><td colspan="5" style="text-align: center; color: #a0aec0;">Aucune donnée pour le moment</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- INVENTORY -->
+            <div id="inventory" class="tab-content">
+                <div class="section">
+                    <h2>📦 Inventaire de la semaine en cours</h2>
+                    <div class="alert alert-info">
+                        📋 <strong>Mode d'emploi :</strong><br>
+                        1️⃣ <strong>Lundi matin :</strong> Remplissez "Stock début"<br>
+                        2️⃣ <strong>Pendant la semaine :</strong> Notez vos "Achats"<br>
+                        3️⃣ <strong>Dimanche soir :</strong> Remplissez "Stock fin"<br>
+                        4️⃣ <strong>Cliquez sur</strong> "💾 Enregistrer inventaire"
+                    </div>
+
+                    <div id="inventoryList"></div>
+                    
+                    <div class="actions">
+                        <button class="btn" onclick="saveInventory()">💾 Enregistrer inventaire</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRODUCTS -->
+            <div id="products" class="tab-content">
+                <div class="section">
+                    <h2>🛒 Configuration des produits</h2>
+                    <div class="alert alert-info">
+                        💡 Définissez le ratio PDJ/Goûter. Ex: 75% PDJ = 75% petit-déjeuner, 25% goûter
+                    </div>
+
+                    <div class="form-row header">
+                        <div>Produit</div>
+                        <div>Prix unitaire (€)</div>
+                        <div>Unité</div>
+                        <div>% PDJ</div>
+                    </div>
+
+                    <div id="productsList"></div>
+
+                    <div class="actions">
+                        <button class="btn" onclick="addProduct()">➕ Ajouter produit</button>
+                        <button class="btn btn-secondary" onclick="saveProducts()">💾 Enregistrer</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HISTORY -->
+            <div id="history" class="tab-content">
+                <div class="section">
+                    <h2>📚 Historique complet</h2>
+                    <div class="alert alert-info">
+                        💡 <strong>Pour supprimer une semaine :</strong> Cliquez sur 🗑️<br>
+                        💡 <strong>Pour tout effacer :</strong> Allez dans "⚙️ Paramètres"
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Semaine</th>
+                                <th>PDJ servis</th>
+                                <th>Coût PDJ</th>
+                                <th>Coût Goûter</th>
+                                <th>Total</th>
+                                <th>Coût/PDJ</th>
+                                <th>Prix vente</th>
+                                <th>Marge %</th>
+                                <th class="no-print">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fullHistoryBody">
+                            <tr><td colspan="9" style="text-align: center; color: #a0aec0;">Aucun historique</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SETTINGS -->
+            <div id="settings" class="tab-content">
+                <div class="section">
+                    <h2>⚙️ Gestion des données</h2>
+                    
+                    <div class="alert alert-info" style="margin-bottom: 30px;">
+                        💡 Gérez vos données stockées dans l'application
+                    </div>
+
+                    <div style="display: grid; gap: 20px;">
+                        <!-- Statistiques -->
+                        <div style="background: white; padding: 20px; border-radius: 8px; border: 2px solid #e2e8f0;">
+                            <h3 style="margin-bottom: 15px; color: #2d3748;">📊 Statistiques</h3>
+                            <p style="margin-bottom: 8px;"><strong>Semaines enregistrées:</strong> <span id="statsWeeks">0</span></p>
+                            <p style="margin-bottom: 8px;"><strong>Produits configurés:</strong> <span id="statsProducts">0</span></p>
+                            <p><strong>Semaine en cours:</strong> <span id="statsCurrentWeek">Aucune</span></p>
+                        </div>
+
+                        <!-- Export -->
+                        <div style="background: white; padding: 20px; border-radius: 8px; border: 2px solid #e2e8f0;">
+                            <h3 style="margin-bottom: 15px; color: #2d3748;">💾 Export</h3>
+                            <p style="margin-bottom: 15px; color: #4a5568; font-size: 14px;">Exportez vos données</p>
+                            <div class="actions" style="margin-top: 0;">
+                                <button class="btn" onclick="exportToExcel()">📊 Excel</button>
+                                <button class="btn btn-secondary" onclick="exportToPDF()">📄 PDF</button>
+                            </div>
+                        </div>
+
+                        <!-- Suppression -->
+                        <div class="section settings-section">
+                            <h3 style="margin-bottom: 15px; color: #c53030;">🗑️ Zone de suppression</h3>
+                            <p style="margin-bottom: 20px; color: #742a2a; font-size: 14px;">⚠️ Actions irréversibles</p>
+                            
+                            <div style="display: grid; gap: 15px;">
+                                <div>
+                                    <h4 style="margin-bottom: 8px; color: #2d3748; font-size: 14px;">Supprimer l'historique</h4>
+                                    <p style="margin-bottom: 10px; color: #4a5568; font-size: 13px;">Efface toutes les semaines (conserve les produits)</p>
+                                    <button class="btn btn-danger" onclick="clearHistory()">🗑️ Vider l'historique</button>
+                                </div>
+
+                                <div>
+                                    <h4 style="margin-bottom: 8px; color: #2d3748; font-size: 14px;">Réinitialiser</h4>
+                                    <p style="margin-bottom: 10px; color: #4a5568; font-size: 13px;">Efface TOUT</p>
+                                    <button class="btn btn-danger" onclick="resetAll()">⚠️ Tout réinitialiser</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Données par défaut
+        const defaultProducts = [
+            { name: "Viennoiseries", price: 2.5, unit: "kg", ratioPDJ: 100 },
+            { name: "Pain", price: 3.0, unit: "kg", ratioPDJ: 100 },
+            { name: "Charcuterie", price: 18, unit: "kg", ratioPDJ: 100 },
+            { name: "Fromage", price: 15, unit: "kg", ratioPDJ: 100 },
+            { name: "Yaourts", price: 0.5, unit: "unité", ratioPDJ: 100 },
+            { name: "Jus de fruits", price: 3.5, unit: "L", ratioPDJ: 90 },
+            { name: "Café", price: 18, unit: "kg", ratioPDJ: 80 },
+            { name: "Thé", price: 0.15, unit: "sachet", ratioPDJ: 75 },
+            { name: "Confiture", price: 8, unit: "kg", ratioPDJ: 80 },
+            { name: "Miel", price: 12, unit: "kg", ratioPDJ: 85 },
+            { name: "Fruits frais", price: 4, unit: "kg", ratioPDJ: 70 },
+            { name: "Compotes", price: 0.6, unit: "unité", ratioPDJ: 80 }
+        ];
+
+        // Initialisation
+        let products = JSON.parse(localStorage.getItem('products')) || defaultProducts;
+        let weeks = JSON.parse(localStorage.getItem('weeks')) || [];
+        let currentWeek = JSON.parse(localStorage.getItem('currentWeek')) || null;
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    showTab(this.getAttribute('data-tab'));
+                });
+            });
+            
+            updateDashboard();
+            if (weeks.length > 0) renderFullHistory();
+            updateSettings();
+        });
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            
+            if (tabName === 'products') renderProducts();
+            if (tabName === 'inventory') renderInventory();
+            if (tabName === 'history') renderFullHistory();
+            if (tabName === 'dashboard') updateDashboard();
+            if (tabName === 'settings') updateSettings();
+        }
+
+        function startNewWeek() {
+            const date = document.getElementById('weekDate').value;
+            const nbPDJ = parseInt(document.getElementById('nbPDJ').value);
+            const prixVente = parseFloat(document.getElementById('prixVentePDJ').value);
+
+            if (!date || !nbPDJ || !prixVente) {
+                alert('⚠️ Veuillez remplir tous les champs');
+                return;
+            }
+
+            currentWeek = {
+                date: date,
+                nbPDJ: nbPDJ,
+                prixVente: prixVente,
+                inventory: products.map(p => ({
+                    name: p.name,
+                    price: p.price,
+                    unit: p.unit,
+                    ratioPDJ: p.ratioPDJ,
+                    stockDebut: 0,
+                    stockFin: 0,
+                    achats: 0
+                }))
+            };
+
+            localStorage.setItem('currentWeek', JSON.stringify(currentWeek));
+            alert('✅ Nouvelle semaine créée !');
+            showTab('inventory');
+        }
+
+        function renderInventory() {
+            const container = document.getElementById('inventoryList');
+            
+            if (!currentWeek) {
+                container.innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 40px;">⚠️ Démarrez une nouvelle semaine dans "Tableau de bord"</p>';
+                return;
+            }
+
+            let html = '<div class="form-row header"><div>Produit</div><div>Stock début</div><div>Achats</div><div>Stock fin</div></div>';
+            
+            currentWeek.inventory.forEach((item, index) => {
+                html += `
+                    <div class="form-row">
+                        <div>${item.name} <span class="ratio-badge">${item.ratioPDJ}% PDJ</span></div>
+                        <div><input type="number" step="0.1" value="${item.stockDebut}" onchange="updateInventoryItem(${index}, 'stockDebut', this.value)" placeholder="0"> ${item.unit}</div>
+                        <div><input type="number" step="0.1" value="${item.achats}" onchange="updateInventoryItem(${index}, 'achats', this.value)" placeholder="0"> ${item.unit}</div>
+                        <div><input type="number" step="0.1" value="${item.stockFin}" onchange="updateInventoryItem(${index}, 'stockFin', this.value)" placeholder="0"> ${item.unit}</div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateInventoryItem(index, field, value) {
+            currentWeek.inventory[index][field] = parseFloat(value) || 0;
+            localStorage.setItem('currentWeek', JSON.stringify(currentWeek));
+        }
+
+        function saveInventory() {
+            if (!currentWeek) return;
+            
+            let totalCostPDJ = 0;
+            let totalCostGouter = 0;
+
+            currentWeek.inventory.forEach(item => {
+                const consommation = item.stockDebut + item.achats - item.stockFin;
+                const costTotal = consommation * item.price;
+                totalCostPDJ += costTotal * (item.ratioPDJ / 100);
+                totalCostGouter += costTotal * ((100 - item.ratioPDJ) / 100);
+            });
+
+            const costPerPDJ = totalCostPDJ / currentWeek.nbPDJ;
+            const marge = ((currentWeek.prixVente - costPerPDJ) / currentWeek.prixVente * 100);
+
+            weeks.unshift({
+                ...currentWeek,
+                totalCostPDJ: totalCostPDJ.toFixed(2),
+                totalCostGouter: totalCostGouter.toFixed(2),
+                costPerPDJ: costPerPDJ.toFixed(2),
+                marge: marge.toFixed(1)
+            });
+
+            if (weeks.length > 20) weeks = weeks.slice(0, 20);
+            
+            localStorage.setItem('weeks', JSON.stringify(weeks));
+            localStorage.removeItem('currentWeek');
+            currentWeek = null;
+
+            alert('✅ Inventaire enregistré !');
+            updateDashboard();
+            showTab('dashboard');
+        }
+
+        function renderProducts() {
+            const container = document.getElementById('productsList');
+            let html = '';
+            
+            products.forEach((p, index) => {
+                html += `
+                    <div class="form-row">
+                        <div><input type="text" value="${p.name}" onchange="updateProduct(${index}, 'name', this.value)"></div>
+                        <div><input type="number" step="0.1" value="${p.price}" onchange="updateProduct(${index}, 'price', this.value)"></div>
+                        <div>
+                            <select onchange="updateProduct(${index}, 'unit', this.value)">
+                                <option ${p.unit === 'kg' ? 'selected' : ''}>kg</option>
+                                <option ${p.unit === 'L' ? 'selected' : ''}>L</option>
+                                <option ${p.unit === 'unité' ? 'selected' : ''}>unité</option>
+                                <option ${p.unit === 'sachet' ? 'selected' : ''}>sachet</option>
+                            </select>
+                        </div>
+                        <div><input type="number" min="0" max="100" value="${p.ratioPDJ}" onchange="updateProduct(${index}, 'ratioPDJ', this.value)">%</div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateProduct(index, field, value) {
+            products[index][field] = (field === 'price' || field === 'ratioPDJ') ? parseFloat(value) : value;
+        }
+
+        function addProduct() {
+            products.push({ name: "Nouveau produit", price: 0, unit: "kg", ratioPDJ: 100 });
+            renderProducts();
+        }
+
+        function saveProducts() {
+            localStorage.setItem('products', JSON.stringify(products));
+            alert('✅ Produits sauvegardés !');
+        }
+
+        function updateDashboard() {
+            if (!weeks || weeks.length === 0) {
+                document.getElementById('avgCostPDJ').textContent = '-';
+                document.getElementById('margePDJ').textContent = '-';
+                document.getElementById('avgCostGouter').textContent = '-';
+                document.getElementById('totalPDJ').textContent = '-';
+                document.getElementById('historyBody').innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;">Aucune donnée</td></tr>';
+                return;
+            }
+
+            const last4 = weeks.slice(0, 4);
+            const avgCostPDJ = last4.reduce((s, w) => s + parseFloat(w.costPerPDJ), 0) / last4.length;
+            const avgMarge = last4.reduce((s, w) => s + parseFloat(w.marge), 0) / last4.length;
+
+            document.getElementById('avgCostPDJ').textContent = avgCostPDJ.toFixed(2) + ' €';
+            document.getElementById('margePDJ').textContent = avgMarge.toFixed(1) + ' %';
+            document.getElementById('avgCostGouter').textContent = weeks[0].totalCostGouter + ' €';
+            document.getElementById('totalPDJ').textContent = weeks[0].nbPDJ;
+
+            document.getElementById('historyBody').innerHTML = last4.map(w => `
+                <tr>
+                    <td>${new Date(w.date).toLocaleDateString('fr-FR')}</td>
+                    <td>${w.nbPDJ}</td>
+                    <td>${(parseFloat(w.totalCostPDJ) + parseFloat(w.totalCostGouter)).toFixed(2)} €</td>
+                    <td>${w.costPerPDJ} €</td>
+                    <td>${w.marge}%</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderFullHistory() {
+            const tbody = document.getElementById('fullHistoryBody');
+            if (weeks.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #a0aec0;">Aucun historique</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = weeks.map((w, index) => `
+                <tr>
+                    <td>${new Date(w.date).toLocaleDateString('fr-FR')}</td>
+                    <td>${w.nbPDJ}</td>
+                    <td>${w.totalCostPDJ} €</td>
+                    <td>${w.totalCostGouter} €</td>
+                    <td>${(parseFloat(w.totalCostPDJ) + parseFloat(w.totalCostGouter)).toFixed(2)} €</td>
+                    <td>${w.costPerPDJ} €</td>
+                    <td>${w.prixVente} €</td>
+                    <td>${w.marge}%</td>
+                    <td class="no-print"><button class="btn btn-danger btn-small" onclick="deleteWeek(${index})">🗑️</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function deleteWeek(index) {
+            if (!confirm('Supprimer cette semaine ?')) return;
+            weeks.splice(index, 1);
+            localStorage.setItem('weeks', JSON.stringify(weeks));
+            renderFullHistory();
+            updateDashboard();
+            alert('✅ Semaine supprimée !');
+        }
+
+        function clearHistory() {
+            if (!confirm('⚠️ Supprimer TOUT l\'historique ?')) return;
+            if (!confirm('Dernière confirmation ?')) return;
+            
+            weeks = [];
+            localStorage.setItem('weeks', JSON.stringify(weeks));
+            localStorage.removeItem('currentWeek');
+            currentWeek = null;
+            
+            renderFullHistory();
+            updateDashboard();
+            updateSettings();
+            alert('✅ Historique vidé !');
+        }
+
+        function resetAll() {
+            if (!confirm('⚠️ TOUT effacer ?')) return;
+            if (!confirm('Êtes-vous sûr ?')) return;
+            
+            localStorage.clear();
+            alert('✅ Réinitialisé !');
+            location.reload();
+        }
+
+        function updateSettings() {
+            document.getElementById('statsWeeks').textContent = weeks.length;
+            document.getElementById('statsProducts').textContent = products.length;
+            document.getElementById('statsCurrentWeek').textContent = currentWeek 
+                ? `${new Date(currentWeek.date).toLocaleDateString('fr-FR')} (en cours)`
+                : 'Aucune';
+        }
+
+        function calculateCurrentWeek() {
+            updateDashboard();
+            alert('✅ Recalculé !');
+        }
+
+        function exportToExcel() {
+            if (weeks.length === 0) {
+                alert('Aucune donnée à exporter');
+                return;
+            }
+
+            try {
+                const wb = XLSX.utils.book_new();
+                const historyData = [
+                    ['Date', 'PDJ servis', 'Prix vente', 'Coût PDJ', 'Coût Goûter', 'Total', 'Coût/PDJ', 'Marge %'],
+                    ...weeks.map(w => [
+                        new Date(w.date).toLocaleDateString('fr-FR'),
+                        w.nbPDJ,
+                        parseFloat(w.prixVente),
+                        parseFloat(w.totalCostPDJ),
+                        parseFloat(w.totalCostGouter),
+                        parseFloat(w.totalCostPDJ) + parseFloat(w.totalCostGouter),
+                        parseFloat(w.costPerPDJ),
+                        parseFloat(w.marge)
+                    ])
+                ];
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(historyData), 'Historique');
+
+                const productsData = [
+                    ['Produit', 'Prix', 'Unité', '% PDJ'],
+                    ...products.map(p => [p.name, p.price, p.unit, p.ratioPDJ])
+                ];
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(productsData), 'Produits');
+
+                XLSX.writeFile(wb, `suivi_pdj_${new Date().toISOString().split('T')[0]}.xlsx`);
+                alert('✅ Excel exporté !');
+            } catch (error) {
+                alert('❌ Erreur export Excel: ' + error.message);
+            }
+        }
+
+        function exportToPDF() {
+            if (weeks.length === 0) {
+                alert('Aucune donnée à exporter');
+                return;
+            }
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                doc.setFontSize(20);
+                doc.text('Suivi PDJ & Goûter', 105, 20, { align: 'center' });
+                
+                doc.setFontSize(10);
+                doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 105, 28, { align: 'center' });
+
+                const last4 = weeks.slice(0, 4);
+                const avgCostPDJ = last4.reduce((s, w) => s + parseFloat(w.costPerPDJ), 0) / last4.length;
+                const avgMarge = last4.reduce((s, w) => s + parseFloat(w.marge), 0) / last4.length;
+
+                doc.setFontSize(14);
+                doc.text('Indicateurs clés', 14, 45);
+                doc.setFontSize(11);
+                doc.text(`Coût moyen PDJ: ${avgCostPDJ.toFixed(2)} €`, 14, 55);
+                doc.text(`Marge moyenne: ${avgMarge.toFixed(1)} %`, 14, 62);
+
+                doc.setFontSize(14);
+                doc.text('Historique', 14, 75);
+
+                doc.autoTable({
+                    startY: 80,
+                    head: [['Date', 'PDJ', 'Coût PDJ', 'Coût Goûter', 'Coût/PDJ', 'Prix', 'Marge %']],
+                    body: weeks.map(w => [
+                        new Date(w.date).toLocaleDateString('fr-FR'),
+                        w.nbPDJ,
+                        `${w.totalCostPDJ} €`,
+                        `${w.totalCostGouter} €`,
+                        `${w.costPerPDJ} €`,
+                        `${w.prixVente} €`,
+                        `${w.marge}%`
+                    ]),
+                    theme: 'grid',
+                    styles: { fontSize: 9, cellPadding: 3 },
+                    headStyles: { fillColor: [102, 126, 234] }
+                });
+
+                doc.addPage();
+                doc.setFontSize(14);
+                doc.text('Configuration des produits', 14, 20);
+
+                doc.autoTable({
+                    startY: 30,
+                    head: [['Produit', 'Prix unitaire', 'Unité', '% PDJ']],
+                    body: products.map(p => [p.name, `${p.price} €`, p.unit, `${p.ratioPDJ}%`]),
+                    theme: 'grid',
+                    styles: { fontSize: 10, cellPadding: 3 },
+                    headStyles: { fillColor: [102, 126, 234] }
+                });
+
+                doc.save(`suivi_pdj_${new Date().toISOString().split('T')[0]}.pdf`);
+                alert('✅ PDF exporté !');
+            } catch (error) {
+                alert('❌ Erreur export PDF: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
